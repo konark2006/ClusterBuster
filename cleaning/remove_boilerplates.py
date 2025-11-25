@@ -10,10 +10,11 @@ def log_html_removal(original, cleaned, row_num=None):
         row_info = f"Row {row_num}: " if row_num is not None else ""
         print(f"  [HTML] {row_info}Removed HTML tags: {original[:50]}... -> {cleaned[:50]}...")  # Comment this line to disable HTML logging
 
-def log_pattern_removal(line, row_num=None):
-    """Log pattern removal - comment out the print line to disable pattern logs"""
+def log_pattern_removal(line, row_num=None, reason="pattern"):
+    """Log pattern/short line removal - comment out the print line to disable pattern logs"""
     row_info = f"Row {row_num}: " if row_num is not None else ""
-    print(f"  [PATTERN] {row_info}Removed line with pattern: {line[:80]}...")  # Comment this line to disable pattern logging
+    reason_text = "short line" if reason == "short" else "pattern"
+    print(f"  [PATTERN] {row_info}Removed line ({reason_text}): {line[:80]}...")  # Comment this line to disable pattern logging
 
 def log_info(message):
     """Log info messages - comment out the print line to disable info logs"""
@@ -210,6 +211,10 @@ def remove_common_patterns(text, row_num=None):
         segment_stripped = segment.strip()
         
         if not segment_stripped:
+            continue
+        
+        if len(segment_stripped) < 30:
+            log_pattern_removal(segment_stripped, row_num, reason="short")
             continue
         
         pattern_found = False
