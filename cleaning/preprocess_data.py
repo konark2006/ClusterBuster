@@ -12,7 +12,7 @@ df_full = pd.read_excel(data_path)
 print(f"Total rows in dataset: {len(df_full)}")
 
 # Randomly sample 4000 rows
-df_sample = df_full.sample(n=4000, random_state=42)
+df_sample = df_full.sample(n=4000, random_state=12)
 
 print(f"Sampled {len(df_sample)} rows")
 

@@ -24,7 +24,7 @@ def clean_html(text):
     soup = BeautifulSoup(text, 'html.parser')    
     cleaned_text = soup.get_text(separator=' ', strip=True)    
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
-    
+
     return cleaned_text.strip()
 
 def remove_html_tags(df, column_name='content_text'):
@@ -52,7 +52,7 @@ def remove_html_tags(df, column_name='content_text'):
         print(f"HTML tags removed from {df_cleaned[column_name].notna().sum()} rows")
     else:
         print(f"Warning: Column '{column_name}' not found in DataFrame")
-        print(f "Available columns: {df_cleaned.columns.tolist()}")
+        print(f"Available columns: {df_cleaned.columns.tolist()}")
     
     return df_cleaned
 
