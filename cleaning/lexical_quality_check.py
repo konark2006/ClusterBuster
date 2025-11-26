@@ -32,6 +32,11 @@ def log_mtld_removal(row_num, mtld_value, threshold, text=None):
     words_preview = f" '{_get_first_two_words(text)}'" if text else ""
     print(f"[MTLD] Row {row_num}{words_preview}: Dropped (MTLD: {mtld_value:.4f} < {threshold})")  # Comment this line to disable MTLD logging
 
+def log_hapax_removal(row_num, hapax_value, threshold, text=None):
+    """Log hapax ratio-based row removal - comment out the print line to disable hapax logs"""
+    words_preview = f" '{_get_first_two_words(text)}'" if text else ""
+    print(f"[HAPAX] Row {row_num}{words_preview}: Dropped (Hapax Ratio: {hapax_value:.4f} < {threshold})")  # Comment this line to disable hapax logging
+
 
 ### TTR Check Functions ###
 def calculate_ttr(text):
@@ -390,6 +395,110 @@ def filter_by_mtld(df, column_name='content_text', mtld_threshold=50.0,
     df_filtered = df_filtered[mask].copy()
     
     log_info(f"[INFO] Remaining rows after MTLD filtering: {len(df_filtered)}")
+    
+    return df_filtered
+
+
+### Hapax Ratio Check Functions ###
+def calculate_hapax_ratio(text):
+    """
+    Calculate Hapax Ratio for a given text.
+    
+    Hapax Ratio = number of words that appear exactly once (hapax legomena) / total number of words
+    
+    Higher hapax ratio indicates more unique/rare words in the text.
+    Lower hapax ratio indicates more repetitive/common words.
+    
+    Parameters:
+    -----------
+    text : str
+        Text string to calculate hapax ratio for
+        
+    Returns:
+    --------
+    float
+        Hapax ratio value between 0 and 1, or None if text is empty/invalid
+    """
+    if pd.isna(text) or text is None:
+        return None
+    
+    text = str(text).strip()
+    if not text:
+        return None
+    
+    tokens = [word.lower() for word in text.split() if word.strip()]
+    
+    if len(tokens) == 0:
+        return None
+    
+    word_counts = {}
+    for token in tokens:
+        word_counts[token] = word_counts.get(token, 0) + 1
+    
+    hapax_count = sum(1 for count in word_counts.values() if count == 1)
+    
+    hapax_ratio = hapax_count / len(tokens)
+    
+    return hapax_ratio
+
+
+def filter_by_hapax_ratio(df, column_name='content_text', hapax_threshold=0.3, drop_below=True):
+    """
+    Filter DataFrame rows based on Hapax Ratio threshold.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame containing the data
+    column_name : str, default='content_text'
+        The name of the column containing text content
+    hapax_threshold : float, default=0.3
+        Hapax ratio threshold value (between 0 and 1)
+    drop_below : bool, default=True
+        If True, drop rows with hapax ratio below threshold (low uniqueness).
+        If False, drop rows with hapax ratio above threshold (high uniqueness).
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        DataFrame with rows filtered based on hapax ratio threshold
+    """
+    df_filtered = df.copy()
+    
+    if column_name not in df_filtered.columns:
+        log_info(f"[Warning] Column '{column_name}' not found in DataFrame")
+        log_info(f"[INFO] Available columns: {df_filtered.columns.tolist()}")
+        return df_filtered
+    
+    log_info(f"\n[INFO] Filtering rows based on Hapax Ratio threshold ({hapax_threshold})...")
+    log_info(f"[INFO] Initial row count: {len(df_filtered)}")
+    
+    hapax_values = df_filtered[column_name].apply(calculate_hapax_ratio)
+    
+    if drop_below:
+        dropped_rows = df_filtered[hapax_values < hapax_threshold].index
+        for row_idx in dropped_rows:
+            hapax_val = hapax_values.loc[row_idx]
+            if pd.notna(hapax_val):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_hapax_removal(row_idx, hapax_val, hapax_threshold, text_content)
+        mask = (hapax_values >= hapax_threshold) | (hapax_values.isna())
+        dropped_count = (hapax_values < hapax_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Hapax Ratio < {hapax_threshold}")
+    else:
+        dropped_rows = df_filtered[hapax_values > hapax_threshold].index
+        for row_idx in dropped_rows:
+            hapax_val = hapax_values.loc[row_idx]
+            if pd.notna(hapax_val):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_hapax_removal(row_idx, hapax_val, hapax_threshold, text_content)
+        mask = (hapax_values <= hapax_threshold) | (hapax_values.isna())
+        dropped_count = (hapax_values > hapax_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Hapax Ratio > {hapax_threshold}")
+    
+    df_filtered = df_filtered[mask].copy()
+    
+    log_info(f"[INFO] Remaining rows after Hapax Ratio filtering: {len(df_filtered)}")
     
     return df_filtered
 
