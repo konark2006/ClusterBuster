@@ -16,12 +16,12 @@ LOOSE_THRESHOLDS = {
 }
 
 STRICT_THRESHOLDS = {
-    "ttr": 0.14,              
-    "entropy": 4.0,          
-    "mtld": 22.0,       
-    "hapax_ratio": 0.12,   
-    "repetition_ratio": 0.15, 
-    "stopword_ratio": 0.40,  
+    "ttr": 0.15,              
+    "entropy": 4.1,          
+    "mtld": 23.0,       
+    "hapax_ratio": 0.13,   
+    "repetition_ratio": 0.12, 
+    "stopword_ratio": 0.35,  
 }
 
 def filter_by_label_and_country(df, label_column='Label', country_column='Country',
