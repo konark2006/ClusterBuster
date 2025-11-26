@@ -25,7 +25,8 @@ STRICT_THRESHOLDS = {
 }
 
 
-def filter_by_label_and_country(df, label_column='Label', country_column='Country'):
+def filter_by_label_and_country(df, label_column='Label', country_column='Country',
+                                target_country='United States', valid_labels=None):
     """
     Filter DataFrame by Label and Country criteria.
     
@@ -37,6 +38,11 @@ def filter_by_label_and_country(df, label_column='Label', country_column='Countr
         The name of the column containing labels
     country_column : str, default='Country'
         The name of the column containing country information
+    target_country : str, default='United States'
+        The country to filter for (case-insensitive)
+    valid_labels : set or list, optional
+        Set or list of valid labels to filter for. If None, defaults to 
+        {'research materials', 'technical documentation'}
         
     Returns:
     --------
@@ -84,21 +90,29 @@ def filter_by_label_and_country(df, label_column='Label', country_column='Countr
     
     print(f"\nUsing columns: Label='{label_col}', Country='{country_col}'")
     
-    print(f"\n[Filter 1/2] Filtering by Country (United States only)...")
+    if valid_labels is None:
+        valid_labels = {'research materials', 'technical documentation'}
+    else:
+        # Convert to set and normalize to lowercase
+        valid_labels = {str(label).lower().strip() for label in valid_labels}
+    
+    print(f"\n[Filter 1/2] Filtering by Country ({target_country} only)...")
     before_country = len(df_filtered)
-    df_filtered = df_filtered[df_filtered[country_col].astype(str).str.lower().str.strip() == 'united states']
+    target_country_lower = str(target_country).lower().strip()
+    df_filtered = df_filtered[df_filtered[country_col].astype(str).str.lower().str.strip() == target_country_lower]
     after_country = len(df_filtered)
     print(f"  Rows before country filter: {before_country}")
     print(f"  Rows after country filter: {after_country}")
     print(f"  Removed: {before_country - after_country} rows")
     
-    print(f"\n[Filter 2/2] Filtering by Label (research materials and/or technical documentation only)...")
+    valid_labels_str = ', '.join(sorted(valid_labels))
+    print(f"\n[Filter 2/2] Filtering by Label ({valid_labels_str} only)...")
     before_label = len(df_filtered)
     
     def is_valid_label(label_value):
         """
-        Check if label contains only 'research materials' and/or 'technical documentation'.
-        Returns True if the label contains one or both of these and no other labels.
+        Check if label contains only labels from the valid_labels set.
+        Returns True if the label contains one or more valid labels and no other labels.
         """
         if pd.isna(label_value):
             return False
@@ -107,8 +121,6 @@ def filter_by_label_and_country(df, label_column='Label', country_column='Countr
         
         labels = re.split(r'[,;|\n\r]+', label_str)
         labels = [l.strip() for l in labels if l.strip()]
-        
-        valid_labels = {'research materials', 'technical documentation'}
         
         for label in labels:
             if label not in valid_labels:
@@ -286,40 +298,88 @@ def apply_loose_filtering(df, column_name='content_text', thresholds=None):
     return df_cleaned
 
 
-if __name__ == '__main__':
-    data_path = os.path.join('data', 'Final_table_results.xlsx')
+def preprocess_data(input_path='data/Final_table_results.xlsx', 
+                   output_path='data/cleaned_data.xlsx',
+                   label_column='Label', 
+                   country_column='Country',
+                   target_country='United States',
+                   valid_labels=None,
+                   filtering_mode='loose',
+                   thresholds=None,
+                   column_name='content_text',
+                   save_output=True):
+    """
+    Preprocess data by filtering and cleaning.
     
-    print("Loading Excel file...")
-    df_full = pd.read_excel(data_path)
+    Parameters:
+    -----------
+    input_path : str, default='data/Final_table_results.xlsx'
+        Path to the input Excel file
+    output_path : str, default='data/cleaned_data.xlsx'
+        Path to save the cleaned data Excel file
+    label_column : str, default='Label'
+        Name of the column containing labels
+    country_column : str, default='Country'
+        Name of the column containing country information
+    target_country : str, default='United States'
+        The country to filter for (case-insensitive)
+    valid_labels : set or list, optional
+        Set or list of valid labels to filter for. If None, defaults to 
+        {'research materials', 'technical documentation'}
+    filtering_mode : str, default='loose'
+        Filtering mode: 'strict', 'loose', or 'none'
+        - 'strict': Uses STRICT_THRESHOLDS for high-quality data
+        - 'loose': Uses LOOSE_THRESHOLDS for broader data retention
+        - 'none': Skips quality filtering (only label/country filtering)
+    thresholds : dict, optional
+        Custom threshold dictionary. If provided, overrides the default thresholds.
+        Expected keys: 'ttr', 'entropy', 'mtld', 'hapax_ratio', 'repetition_ratio', 'stopword_ratio'
+    column_name : str, default='content_text'
+        Name of the column containing text content
+    save_output : bool, default=True
+        Whether to save the cleaned data to output_path
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        Cleaned and filtered DataFrame
+    """
+    print("\n" + "="*60)
+    print("DATA PREPROCESSING")
+    print("="*60)
     
+    print(f"\nLoading Excel file from {input_path}...")
+    df_full = pd.read_excel(input_path)
     print(f"Total rows in dataset: {len(df_full)}")
     
-    # Filter by Label and Country instead of random sampling
-    df_filtered = filter_by_label_and_country(df_full, label_column='Label', country_column='Country')
+    df_filtered = filter_by_label_and_country(df_full, 
+                                             label_column=label_column, 
+                                             country_column=country_column,
+                                             target_country=target_country,
+                                             valid_labels=valid_labels)
     
     print(f"\nFiltered dataset: {len(df_filtered)} rows")
     
-    # Apply strict filtering (uses STRICT_THRESHOLDS by default)
-    # df_cleaned = apply_strict_filtering(df_filtered, column_name='content_text')
-    
-    # Apply loose filtering (uses LOOSE_THRESHOLDS by default)
-    df_cleaned = apply_loose_filtering(df_filtered, column_name='content_text')
-    
-    # Or use custom thresholds
-    # custom_thresholds = {
-    #     "ttr": 0.13,
-    #     "entropy": 4.0,
-    #     "mtld": 25.0,
-    #     "hapax_ratio": 0.12,
-    #     "repetition_ratio": 0.20,
-    #     "stopword_ratio": 0.68,
-    # }
-    # df_cleaned = apply_loose_filtering(df_sample, column_name='content_text', thresholds=custom_thresholds)
+    if filtering_mode == 'strict':
+        df_cleaned = apply_strict_filtering(df_filtered, 
+                                           column_name=column_name, 
+                                           thresholds=thresholds)
+    elif filtering_mode == 'loose':
+        df_cleaned = apply_loose_filtering(df_filtered, 
+                                          column_name=column_name, 
+                                          thresholds=thresholds)
+    elif filtering_mode == 'none':
+        print("\nSkipping quality filtering (filtering_mode='none')...")
+        df_cleaned = df_filtered.copy()
+    else:
+        raise ValueError(f"Invalid filtering_mode: {filtering_mode}. Must be 'strict', 'loose', or 'none'")
     
     print(f"\nData preprocessing complete!")
     print(f"Final DataFrame shape: {df_cleaned.shape}")
     
-    output_path = os.path.join('data', 'cleaned_data.xlsx')
-    print(f"\nSaving cleaned data to {output_path}...")
-    df_cleaned.to_excel(output_path, index=False)
-    print(f"Cleaned data saved successfully to {output_path}")
+    if save_output:
+        print(f"\nSaving cleaned data to {output_path}...")
+        df_cleaned.to_excel(output_path, index=False)
+        print(f"Cleaned data saved successfully to {output_path}")
+    
+    return df_cleaned
