@@ -3,6 +3,9 @@ import os
 from collections import Counter
 import re
 from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_top_ngrams(texts, n=1, top_k=10):
