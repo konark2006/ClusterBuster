@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from remove_boilerplates import remove_html_tags, remove_boilerplate_patterns
-from lexical_quality_check import filter_by_ttr, filter_by_entropy
+from lexical_quality_check import filter_by_ttr, filter_by_entropy, filter_by_mtld
 
 data_path = os.path.join('data', 'Final_table_results.xlsx')
 
@@ -18,6 +18,7 @@ print(f"Sampled {len(df_sample)} rows")
 # df_cleaned = remove_boilerplate_patterns(df_cleaned, column_name='content_text')
 # df_cleaned = filter_by_ttr(df_sample, column_name='content_text')
 # df_cleaned = filter_by_entropy(df_sample, column_name='content_text', entropy_threshold=4.0, drop_below=True)
+df_cleaned = filter_by_mtld(df_sample, column_name='content_text', mtld_threshold=9.0, ttr_threshold=0.90, min_words=5)
 
 print(f"\nData preprocessing complete!")
 print(f"Final DataFrame shape: {df_cleaned.shape}")

@@ -4,15 +4,25 @@ import re
 
 
 ### Logging Functions ###
+def _get_first_two_words(text):
+    """Extract first 2 words from text for logging"""
+    if pd.isna(text) or text is None:
+        return ""
+    text_str = str(text).strip()
+    words = text_str.split()[:2]
+    return " ".join(words) if words else ""
+
 def log_html_removal(original, cleaned, row_num=None):
     """Log HTML removal - comment out the print line to disable HTML logs"""
     if original != cleaned and '<' in original and '>' in original:
-        row_info = f"Row {row_num}: " if row_num is not None else ""
+        words_preview = f" '{_get_first_two_words(original)}'" if row_num is not None else ""
+        row_info = f"Row {row_num}{words_preview}: " if row_num is not None else ""
         print(f"  [HTML] {row_info}Removed HTML tags: {original[:50]}... -> {cleaned[:50]}...")  # Comment this line to disable HTML logging
 
 def log_pattern_removal(line, row_num=None, reason="pattern"):
     """Log pattern/short line removal - comment out the print line to disable pattern logs"""
-    row_info = f"Row {row_num}: " if row_num is not None else ""
+    words_preview = f" '{_get_first_two_words(line)}'" if row_num is not None else ""
+    row_info = f"Row {row_num}{words_preview}: " if row_num is not None else ""
     reason_text = "short line" if reason == "short" else "pattern"
     print(f"  [PATTERN] {row_info}Removed line ({reason_text}): {line[:80]}...")  # Comment this line to disable pattern logging
 
