@@ -223,9 +223,9 @@ def remove_common_patterns(text, row_num=None):
         if not segment_stripped:
             continue
         
-        if len(segment_stripped) < 30:
-            log_pattern_removal(segment_stripped, row_num, reason="short")
-            continue
+        # if len(segment_stripped) < 30:
+        #     log_pattern_removal(segment_stripped, row_num, reason="short")
+        #     continue
         
         pattern_found = False
         matched_pattern = None
