@@ -1,7 +1,9 @@
 import pandas as pd
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
 import re
+import warnings
 
+warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 ### Logging Functions ###
 def _get_first_two_words(text):
@@ -185,8 +187,17 @@ def remove_common_patterns(text, row_num=None):
         r'Cookie Consent',
     ]
     
+    # Filename and file path patterns
+    filename_patterns = [
+        r'[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)+[^\\/:*?"<>|\r\n]+\.[A-Za-z]{2,5}',
+        r'^[A-Za-z]:\\[^\s]+',
+        r'/(?:[^\s/]+/)+[^\s/]+\.[A-Za-z]{2,5}',
+        r'[A-Za-z0-9_\-\\]+\.(?:txt|pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|zip|rar|exe|py|js|html|css|xml|json|csv|log|dat)(?:\s|$)',
+        r'^(?:[A-Za-z]:\\)?[A-Za-z0-9_\-\\/]+\.[A-Za-z]{2,5}(?:\s|$)',
+    ]
+    
     # Combine all patterns
-    all_patterns = phone_patterns + [email_pattern] + url_patterns + address_patterns + social_patterns + common_text_patterns
+    all_patterns = phone_patterns + [email_pattern] + url_patterns + address_patterns + social_patterns + common_text_patterns + filename_patterns
     
     # Add pattern for lines with repeated characters
     all_patterns.append(r'(.)\1{4,}')

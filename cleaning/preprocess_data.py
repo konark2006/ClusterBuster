@@ -189,10 +189,10 @@ if __name__ == '__main__':
     print(f"Sampled {len(df_sample)} rows")
     
     # Apply strict filtering (uses STRICT_THRESHOLDS by default)
-    df_cleaned = apply_strict_filtering(df_sample, column_name='content_text')
+    # df_cleaned = apply_strict_filtering(df_sample, column_name='content_text')
     
     # Apply loose filtering (uses LOOSE_THRESHOLDS by default)
-    # df_cleaned = apply_loose_filtering(df_sample, column_name='content_text')
+    df_cleaned = apply_loose_filtering(df_sample, column_name='content_text')
     
     # Or use custom thresholds
     # custom_thresholds = {
@@ -207,3 +207,8 @@ if __name__ == '__main__':
     
     print(f"\nData preprocessing complete!")
     print(f"Final DataFrame shape: {df_cleaned.shape}")
+    
+    output_path = os.path.join('data', 'cleaned_data.xlsx')
+    print(f"\nSaving cleaned data to {output_path}...")
+    df_cleaned.to_excel(output_path, index=False)
+    print(f"Cleaned data saved successfully to {output_path}")
