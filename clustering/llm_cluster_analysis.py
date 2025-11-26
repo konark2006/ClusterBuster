@@ -86,13 +86,11 @@ Please provide:
 1. Topic Label: A concise, descriptive label for this cluster (e.g., "Ethical concerns & misuse", "AI in student services")
 2. Summary: A 2-3 sentence summary of what this cluster is about
 3. Coherence Assessment: Is this cluster coherent? (Yes/No with brief explanation)
-4. Merge/Split Suggestions: Should this cluster be merged with others or split? Provide specific suggestions.
 
 Format your response as:
 TOPIC_LABEL: [label]
 SUMMARY: [summary]
-COHERENCE: [assessment]
-MERGE_SPLIT: [suggestions]"""
+COHERENCE: [assessment]"""
 
     try:
         response = client.chat.completions.create(
@@ -110,8 +108,7 @@ MERGE_SPLIT: [suggestions]"""
         result = {
             'topic_label': '',
             'summary': '',
-            'coherence': '',
-            'merge_suggestions': ''
+            'coherence': ''
         }
         
         for line in result_text.split('\n'):
@@ -121,8 +118,6 @@ MERGE_SPLIT: [suggestions]"""
                 result['summary'] = line.replace('SUMMARY:', '').strip()
             elif line.startswith('COHERENCE:'):
                 result['coherence'] = line.replace('COHERENCE:', '').strip()
-            elif line.startswith('MERGE_SPLIT:'):
-                result['merge_suggestions'] = line.replace('MERGE_SPLIT:', '').strip()
         
         return result
         
@@ -131,8 +126,7 @@ MERGE_SPLIT: [suggestions]"""
         return {
             'topic_label': 'Error in analysis',
             'summary': f'Error: {str(e)}',
-            'coherence': 'Unknown',
-            'merge_suggestions': 'N/A'
+            'coherence': 'Unknown'
         }
 
 
@@ -231,7 +225,6 @@ def analyze_clusters(data_path='data/bertopic_clustered_data.xlsx',
     df['llm_topic_label'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('topic_label', 'N/A') if x != -1 else 'Noise/Outliers')
     df['llm_summary'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('summary', 'N/A') if x != -1 else 'Noise/Outliers')
     df['llm_coherence'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('coherence', 'N/A') if x != -1 else 'Noise/Outliers')
-    df['llm_merge_suggestions'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('merge_suggestions', 'N/A') if x != -1 else 'N/A')
     
     print("\nSaving analyzed data...")
     df.to_excel(output_path, index=False)
@@ -247,8 +240,6 @@ def analyze_clusters(data_path='data/bertopic_clustered_data.xlsx',
             print(f"  Label: {result['topic_label']}")
             print(f"  Summary: {result['summary'][:150]}...")
             print(f"  Coherence: {result['coherence'][:100]}...")
-            if result['merge_suggestions'] and result['merge_suggestions'] != 'N/A':
-                print(f"  Merge/Split: {result['merge_suggestions'][:100]}...")
     print("\n" + "="*60)
     
     return df
