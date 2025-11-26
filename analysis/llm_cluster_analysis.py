@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+import json
 from collections import Counter
 import re
 from openai import OpenAI
@@ -76,7 +77,7 @@ def analyze_cluster_with_llm(representative_texts, unigrams, bigrams, metadata_i
     
     texts_str = "\n\n".join([f"Text {i+1}:\n{text[:500]}" for i, text in enumerate(representative_texts[:5])])
     
-    prompt = f"""Analyze the following cluster of documents and provide a structured analysis.
+    prompt = f"""You are evaluating the quality of a text cluster.
 
 Cluster Information:
 - Top Unigrams: {unigrams_str}
@@ -86,51 +87,123 @@ Cluster Information:
 Representative Texts:
 {texts_str}
 
-Please provide:
-1. Topic Label: A concise, descriptive label for this cluster (e.g., "Ethical concerns & misuse", "AI in student services")
-2. Summary: A 2-3 sentence summary of what this cluster is about
-3. Coherence Assessment: Is this cluster coherent? (Yes/No with brief explanation)
+Your tasks:
 
-Format your response as:
-TOPIC_LABEL: [label]
-SUMMARY: [summary]
-COHERENCE: [assessment]"""
+1. TOPIC_LABEL:
+   - Give a short, descriptive label for this cluster (e.g., "Ethical concerns & misuse", "AI in student services").
+
+2. SUMMARY:
+   - Write a 2–3 sentence summary of what this cluster is about.
+
+3. COHERENCE SCORES:
+   Evaluate how coherent this cluster is using the following criteria, each scored between 0 and 1 (inclusive):
+
+   - semantic_coherence:
+     Are the texts talking about closely related concepts/themes?
+
+   - topical_focus:
+     How focused is the cluster on a single main topic (vs. mixing several unrelated topics)?
+
+   - lexical_cohesion:
+     How much lexical overlap or shared vocabulary is there across texts (e.g., repeated key terms)?
+
+   - lexical_informativeness:
+     How much do the main unigrams/bigrams, topic label and summary rely on meaningful, content-rich words
+     (domain-specific or informative terms) rather than stopwords, generic function words, or boilerplate?
+     (1 = mostly meaningful/informative terms, 0 = dominated by uninformative words/stopwords.)
+
+   - outlier_presence:
+     How free is the cluster from clear outliers?
+     (1 = no obvious outliers, 0 = mostly outliers or several texts that clearly don't belong.)
+
+   Then compute an overall_coherence_score between 0 and 1 as your best judgment of the cluster's quality
+   (you may implicitly weight the above factors).
+
+4. JUSTIFICATION:
+   - Provide a brief 2–3 sentence justification for your scores.
+
+Return your answer as STRICT JSON with this exact structure and field names:
+
+{{
+  "topic_label": "string",
+  "summary": "string",
+  "coherence": {{
+    "overall_coherence_score": float,       // between 0 and 1
+    "semantic_coherence": float,           // between 0 and 1
+    "topical_focus": float,                // between 0 and 1
+    "lexical_cohesion": float,             // between 0 and 1
+    "lexical_informativeness": float,      // between 0 and 1
+    "outlier_presence": float,             // between 0 and 1
+    "justification": "string"
+  }}
+}}"""
 
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert at analyzing document clusters and identifying themes."},
+                {"role": "system", "content": "You are an expert at analyzing document clusters and identifying themes. Always return valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3,
-            max_tokens=500
+            temperature=0.0,
+            max_tokens=1000
         )
         
-        result_text = response.choices[0].message.content
+        result_text = response.choices[0].message.content.strip()
+        
+        # Try to extract JSON from the response (in case it's wrapped in markdown code blocks)
+        if result_text.startswith("```"):
+            # Remove markdown code blocks if present
+            result_text = re.sub(r'```json\s*', '', result_text)
+            result_text = re.sub(r'```\s*', '', result_text)
+            result_text = result_text.strip()
+        
+        # Parse JSON
+        result_json = json.loads(result_text)
+        
+        # Extract coherence scores
+        coherence = result_json.get('coherence', {})
         
         result = {
-            'topic_label': '',
-            'summary': '',
-            'coherence': ''
+            'topic_label': result_json.get('topic_label', ''),
+            'summary': result_json.get('summary', ''),
+            'overall_coherence_score': coherence.get('overall_coherence_score', 0.0),
+            'semantic_coherence': coherence.get('semantic_coherence', 0.0),
+            'topical_focus': coherence.get('topical_focus', 0.0),
+            'lexical_cohesion': coherence.get('lexical_cohesion', 0.0),
+            'lexical_informativeness': coherence.get('lexical_informativeness', 0.0),
+            'outlier_presence': coherence.get('outlier_presence', 0.0),
+            'coherence_justification': coherence.get('justification', '')
         }
-        
-        for line in result_text.split('\n'):
-            if line.startswith('TOPIC_LABEL:'):
-                result['topic_label'] = line.replace('TOPIC_LABEL:', '').strip()
-            elif line.startswith('SUMMARY:'):
-                result['summary'] = line.replace('SUMMARY:', '').strip()
-            elif line.startswith('COHERENCE:'):
-                result['coherence'] = line.replace('COHERENCE:', '').strip()
         
         return result
         
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON response: {e}")
+        print(f"Response was: {result_text[:200]}...")
+        return {
+            'topic_label': 'Error in analysis',
+            'summary': f'JSON parsing error: {str(e)}',
+            'overall_coherence_score': 0.0,
+            'semantic_coherence': 0.0,
+            'topical_focus': 0.0,
+            'lexical_cohesion': 0.0,
+            'lexical_informativeness': 0.0,
+            'outlier_presence': 0.0,
+            'coherence_justification': 'Error parsing response'
+        }
     except Exception as e:
         print(f"Error calling LLM: {e}")
         return {
             'topic_label': 'Error in analysis',
             'summary': f'Error: {str(e)}',
-            'coherence': 'Unknown'
+            'overall_coherence_score': 0.0,
+            'semantic_coherence': 0.0,
+            'topical_focus': 0.0,
+            'lexical_cohesion': 0.0,
+            'lexical_informativeness': 0.0,
+            'outlier_presence': 0.0,
+            'coherence_justification': 'Error in analysis'
         }
 
 
@@ -221,14 +294,21 @@ def analyze_clusters(data_path='data/bertopic_clustered_data.xlsx',
         analysis_results[topic_id] = result
         
         print(f"  Topic Label: {result['topic_label']}")
-        print(f"  Coherence: {result['coherence'][:100]}...")
+        print(f"  Overall Coherence: {result['overall_coherence_score']:.2f}")
+        print(f"  Semantic Coherence: {result['semantic_coherence']:.2f}, Topical Focus: {result['topical_focus']:.2f}")
     
     print("\n" + "="*60)
     print("Adding analysis results to DataFrame...")
     
     df['llm_topic_label'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('topic_label', 'N/A') if x != -1 else 'Noise/Outliers')
     df['llm_summary'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('summary', 'N/A') if x != -1 else 'Noise/Outliers')
-    df['llm_coherence'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('coherence', 'N/A') if x != -1 else 'Noise/Outliers')
+    df['llm_overall_coherence_score'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('overall_coherence_score', 0.0) if x != -1 else 0.0)
+    df['llm_semantic_coherence'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('semantic_coherence', 0.0) if x != -1 else 0.0)
+    df['llm_topical_focus'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('topical_focus', 0.0) if x != -1 else 0.0)
+    df['llm_lexical_cohesion'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('lexical_cohesion', 0.0) if x != -1 else 0.0)
+    df['llm_lexical_informativeness'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('lexical_informativeness', 0.0) if x != -1 else 0.0)
+    df['llm_outlier_presence'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('outlier_presence', 0.0) if x != -1 else 0.0)
+    df['llm_coherence_justification'] = df['topic'].map(lambda x: analysis_results.get(x, {}).get('coherence_justification', 'N/A') if x != -1 else 'N/A')
     
     print("\nSaving analyzed data...")
     df.to_excel(output_path, index=False)
@@ -243,7 +323,13 @@ def analyze_clusters(data_path='data/bertopic_clustered_data.xlsx',
             print(f"\nTopic {topic_id}:")
             print(f"  Label: {result['topic_label']}")
             print(f"  Summary: {result['summary'][:150]}...")
-            print(f"  Coherence: {result['coherence'][:100]}...")
+            print(f"  Overall Coherence: {result['overall_coherence_score']:.2f}")
+            print(f"    - Semantic Coherence: {result['semantic_coherence']:.2f}")
+            print(f"    - Topical Focus: {result['topical_focus']:.2f}")
+            print(f"    - Lexical Cohesion: {result['lexical_cohesion']:.2f}")
+            print(f"    - Lexical Informativeness: {result['lexical_informativeness']:.2f}")
+            print(f"    - Outlier Presence: {result['outlier_presence']:.2f}")
+            print(f"  Justification: {result['coherence_justification'][:100]}...")
     print("\n" + "="*60)
     
     return df
