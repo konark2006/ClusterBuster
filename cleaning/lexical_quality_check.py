@@ -37,6 +37,11 @@ def log_hapax_removal(row_num, hapax_value, threshold, text=None):
     words_preview = f" '{_get_first_two_words(text)}'" if text else ""
     print(f"[HAPAX] Row {row_num}{words_preview}: Dropped (Hapax Ratio: {hapax_value:.4f} < {threshold})")  # Comment this line to disable hapax logging
 
+def log_repetition_removal(row_num, repetition_ratio, threshold, top_word, text=None):
+    """Log repetition ratio-based row removal - comment out the print line to disable repetition logs"""
+    words_preview = f" '{_get_first_two_words(text)}'" if text else ""
+    print(f"[REPETITION] Row {row_num}{words_preview}: Dropped (Repetition Ratio: {repetition_ratio:.4f} > {threshold}, top word: '{top_word}')")  # Comment this line to disable repetition logging
+
 
 ### TTR Check Functions ###
 def calculate_ttr(text):
@@ -499,6 +504,121 @@ def filter_by_hapax_ratio(df, column_name='content_text', hapax_threshold=0.3, d
     df_filtered = df_filtered[mask].copy()
     
     log_info(f"[INFO] Remaining rows after Hapax Ratio filtering: {len(df_filtered)}")
+    
+    return df_filtered
+
+
+### Repetition Ratio Check Functions ###
+def calculate_repetition_ratio(text):
+    """
+    Calculate Repetition Ratio for a given text.
+    
+    Repetition Ratio = count of most frequent word / total number of words
+    
+    Higher repetition ratio indicates that one word dominates the text (low quality/repetitive).
+    Lower repetition ratio indicates more diverse word distribution.
+    
+    Parameters:
+    -----------
+    text : str
+        Text string to calculate repetition ratio for
+        
+    Returns:
+    --------
+    tuple
+        (repetition_ratio, top_word) where:
+        - repetition_ratio: float between 0 and 1, or None if text is empty/invalid
+        - top_word: str, the most frequent word, or None if text is empty/invalid
+    """
+    if pd.isna(text) or text is None:
+        return None, None
+    
+    text = str(text).strip()
+    if not text:
+        return None, None
+    
+    tokens = [word.lower() for word in text.split() if word.strip()]
+    
+    if len(tokens) == 0:
+        return None, None
+    
+    word_counts = {}
+    for token in tokens:
+        word_counts[token] = word_counts.get(token, 0) + 1
+    
+    if len(word_counts) == 0:
+        return None, None
+    
+    top_word = max(word_counts, key=word_counts.get)
+    top_word_count = word_counts[top_word]
+    
+    repetition_ratio = top_word_count / len(tokens)
+    
+    return repetition_ratio, top_word
+
+
+def filter_by_repetition_ratio(df, column_name='content_text', repetition_threshold=0.3, drop_above=True):
+    """
+    Filter DataFrame rows based on Repetition Ratio threshold.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame containing the data
+    column_name : str, default='content_text'
+        The name of the column containing text content
+    repetition_threshold : float, default=0.3
+        Repetition ratio threshold value (between 0 and 1)
+        If drop_above=True, rows with ratio > threshold are dropped
+    drop_above : bool, default=True
+        If True, drop rows with repetition ratio above threshold (high repetition).
+        If False, drop rows with repetition ratio below threshold (low repetition).
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        DataFrame with rows filtered based on repetition ratio threshold
+    """
+    df_filtered = df.copy()
+    
+    if column_name not in df_filtered.columns:
+        log_info(f"[Warning] Column '{column_name}' not found in DataFrame")
+        log_info(f"[INFO] Available columns: {df_filtered.columns.tolist()}")
+        return df_filtered
+    
+    log_info(f"\n[INFO] Filtering rows based on Repetition Ratio threshold ({repetition_threshold})...")
+    log_info(f"[INFO] Initial row count: {len(df_filtered)}")
+    
+    repetition_data = df_filtered[column_name].apply(calculate_repetition_ratio)
+    repetition_ratios = repetition_data.apply(lambda x: x[0] if x[0] is not None else None)
+    top_words = repetition_data.apply(lambda x: x[1] if x[1] is not None else None)
+    
+    if drop_above:
+        dropped_rows = df_filtered[repetition_ratios > repetition_threshold].index
+        for row_idx in dropped_rows:
+            rep_ratio = repetition_ratios.loc[row_idx]
+            top_word = top_words.loc[row_idx]
+            if pd.notna(rep_ratio):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_repetition_removal(row_idx, rep_ratio, repetition_threshold, top_word, text_content)
+        mask = (repetition_ratios <= repetition_threshold) | (repetition_ratios.isna())
+        dropped_count = (repetition_ratios > repetition_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Repetition Ratio > {repetition_threshold}")
+    else:
+        dropped_rows = df_filtered[repetition_ratios < repetition_threshold].index
+        for row_idx in dropped_rows:
+            rep_ratio = repetition_ratios.loc[row_idx]
+            top_word = top_words.loc[row_idx]
+            if pd.notna(rep_ratio):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_repetition_removal(row_idx, rep_ratio, repetition_threshold, top_word, text_content)
+        mask = (repetition_ratios >= repetition_threshold) | (repetition_ratios.isna())
+        dropped_count = (repetition_ratios < repetition_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Repetition Ratio < {repetition_threshold}")
+    
+    df_filtered = df_filtered[mask].copy()
+    
+    log_info(f"[INFO] Remaining rows after Repetition Ratio filtering: {len(df_filtered)}")
     
     return df_filtered
 

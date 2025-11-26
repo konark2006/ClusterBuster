@@ -20,7 +20,8 @@ print(f"Sampled {len(df_sample)} rows")
 # df_cleaned = filter_by_entropy(df_cleaned, column_name='content_text', entropy_threshold=4.0, drop_below=True)
 # df_cleaned = filter_by_mtld(df_cleaned, column_name='content_text', mtld_threshold=9.0, ttr_threshold=0.90, min_words=5)
 # df_cleaned = filter_by_hapax_ratio(df_cleaned, column_name='content_text', hapax_threshold=0.3, drop_below=True)
-df_cleaned = filter_by_repetition_ratio(df_cleaned, column_name='content_text', repetition_threshold=0.3, drop_above=True)
+# df_cleaned = filter_by_repetition_ratio(df_sample, column_name='content_text', repetition_threshold=0.3, drop_above=True)
+
 
 print(f"\nData preprocessing complete!")
 print(f"Final DataFrame shape: {df_cleaned.shape}")
