@@ -1,29 +1,28 @@
 import pandas as pd
 import os
 import re
-from remove_boilerplates import remove_html_tags, remove_boilerplate_patterns
-from lexical_quality_check import filter_by_ttr, filter_by_entropy, filter_by_mtld, filter_by_hapax_ratio, filter_by_repetition_ratio, filter_by_stopword_ratio
+from .remove_boilerplates import remove_html_tags, remove_boilerplate_patterns
+from .lexical_quality_check import filter_by_ttr, filter_by_entropy, filter_by_mtld, filter_by_hapax_ratio, filter_by_repetition_ratio, filter_by_stopword_ratio
 
 
 # Threshold configurations
 LOOSE_THRESHOLDS = {
-    "ttr": 0.12,
-    "entropy": 4.5,
-    "mtld": 20.0,
-    "hapax_ratio": 0.10,
-    "repetition_ratio": 0.25,
-    "stopword_ratio": 0.70,
+    "ttr": 0.10,        
+    "entropy": 4.0,          
+    "mtld": 15.0,           
+    "hapax_ratio": 0.08,     
+    "repetition_ratio": 0.30,
+    "stopword_ratio": 0.50,  
 }
 
 STRICT_THRESHOLDS = {
-    "ttr": 0.15,
-    "entropy": 5.0,
-    "mtld": 30.0,
-    "hapax_ratio": 0.15,
-    "repetition_ratio": 0.15,
-    "stopword_ratio": 0.65,
+    "ttr": 0.14,              
+    "entropy": 4.0,          
+    "mtld": 22.0,       
+    "hapax_ratio": 0.12,   
+    "repetition_ratio": 0.15, 
+    "stopword_ratio": 0.40,  
 }
-
 
 def filter_by_label_and_country(df, label_column='Label', country_column='Country',
                                 target_country='United States', valid_labels=None):

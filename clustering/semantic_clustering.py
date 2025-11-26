@@ -8,13 +8,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from collections import Counter
 import re
 
-# Add parent directory to path to import from cleaning module
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from cleaning.preprocess_data import preprocess_data
 
 
 def generate_embeddings(df=None, data_path='data/cleaned_data.xlsx', column_name='content_text', 
-                        model_name='intfloat/e5-large', batch_size=32, output_path='data/embeddings.npy'):
+                        model_name='all-mpnet-base-v2', batch_size=32, output_path='data/embeddings.npy'):
     """
     Generate semantic embeddings for text data using the specified model.
     
@@ -26,8 +25,8 @@ def generate_embeddings(df=None, data_path='data/cleaned_data.xlsx', column_name
         Path to the cleaned data Excel file (used only if df is None)
     column_name : str, default='content_text'
         Name of the column containing text content
-    model_name : str, default='intfloat/e5-large'
-        Name of the sentence transformer model to use
+    model_name : str, default='all-mpnet-base-v2'
+        Name of the sentence transformer model to use (e.g., 'all-mpnet-base-v2', 'all-MiniLM-L6-v2', 'intfloat/e5-large')
     batch_size : int, default=32
         Batch size for embedding generation
     output_path : str, default='data/embeddings.npy'
@@ -58,7 +57,15 @@ def generate_embeddings(df=None, data_path='data/cleaned_data.xlsx', column_name
     print(f"Rows with valid text: {len(df)}")
     
     texts = df[column_name].astype(str).tolist()
-    texts_with_prefix = [f"passage: {text}" for text in texts]
+    
+    e5_models = ['e5-', 'intfloat/e5']
+    needs_prefix = any(e5 in model_name.lower() for e5 in e5_models)
+    
+    if needs_prefix:
+        print(f"\nDetected E5 model - adding 'passage: ' prefix to texts...")
+        texts = [f"passage: {text}" for text in texts]
+    else:
+        print(f"\nUsing standard sentence transformer model (no prefix needed)...")
     
     print(f"\nLoading model: {model_name}...")
     print("This may take a while on first run (downloading model)...")
@@ -66,7 +73,7 @@ def generate_embeddings(df=None, data_path='data/cleaned_data.xlsx', column_name
     
     print(f"\nGenerating embeddings (batch size: {batch_size})...")
     print("This may take several minutes depending on data size...")
-    embeddings = model.encode(texts_with_prefix, batch_size=batch_size, 
+    embeddings = model.encode(texts, batch_size=batch_size, 
                              show_progress_bar=True, convert_to_numpy=True)
     
     print(f"\nEmbeddings shape: {embeddings.shape}")
@@ -248,9 +255,9 @@ def main(preprocess_input_path='data/Final_table_results.xlsx',
          preprocess_country_column='Country',
          preprocess_target_country='United States',
          preprocess_valid_labels=None,
-         preprocess_filtering_mode='loose',
+         preprocess_filtering_mode='strict',
          preprocess_thresholds=None,
-         embedding_model='intfloat/e5-large',
+         embedding_model='intfloat/e5-large', # intfloat/e5-large, all-mpnet-base-v2, all-mpnet-base-v2
          embedding_batch_size=32,
          embedding_output_path='data/embeddings.npy',
          clustering_min_cluster_size=10,
@@ -281,7 +288,7 @@ def main(preprocess_input_path='data/Final_table_results.xlsx',
         Preprocessing filtering mode: 'strict', 'loose', or 'none'
     preprocess_thresholds : dict, optional
         Custom thresholds for preprocessing
-    embedding_model : str, default='intfloat/e5-large'
+    embedding_model : str, default='all-mpnet-base-v2'
         Model name for embeddings
     embedding_batch_size : int, default=32
         Batch size for embedding generation
