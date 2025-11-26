@@ -88,15 +88,6 @@ A grid of additional charts showing:
 ![Coherence Distribution](assets/coherence%20distribution.png)
 *Example: Coherence score distribution patterns*
 
-![Coherence Comparison](assets/coherence%20comparison.png)
-*Example: Coherence scores comparison across different metrics*
-
-![Topic Size Distribution](assets/topics%20size%20distribution.png)
-*Example: Distribution of document counts per topic*
-
-![Coherence Distribution](assets/coherence%20distribution.png)
-*Example: Coherence score distribution patterns*
-
 ### 4. **Dataset Summary**
 A collapsible panel showing:
 - **Number of Documents:** Total documents analyzed
@@ -159,7 +150,7 @@ The analysis pipeline runs automatically when you upload a file. It consists of 
 
 **Output:** Clustered Excel files with topic assignments, saved to `data/` directory
 
-### Stage 3: LLM Analysis (Optional)
+### Stage 3: LLM Analysis
 **Purpose:** Assess topic quality and generate human-readable summaries
 
 **What it does:**
@@ -262,7 +253,7 @@ Default parameters can be adjusted in `app.py`:
 
 ## 🛠️ Technology Stack
 
-- **Backend:** Flask (Python)
+- **Backend:** Flask 
 - **Clustering:** BERTopic
 - **Embeddings:** Sentence Transformers
 - **LLM Analysis:** OpenAI GPT-4o-mini
