@@ -277,3 +277,4 @@ def remove_boilerplate_patterns(df, column_name='content_text'):
         log_info(f"[INFO] Available columns: {df_cleaned.columns.tolist()}")
     
     return df_cleaned
+    
