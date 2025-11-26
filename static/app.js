@@ -51,12 +51,8 @@ const chartsEmptyEl = document.getElementById("chartsEmpty");
 
 const datasetSummary = document.getElementById("datasetSummary");
 const sentimentSummary = document.getElementById("sentimentSummary");
-const entitySummary = document.getElementById("entitySummary");
 const topicCardsContainer = document.getElementById("topicCardsContainer");
 
-const searchBtn = document.getElementById("searchBtn");
-const searchInput = document.getElementById("searchInput");
-const searchResults = document.getElementById("searchResults");
 
 
 // ======================================================================
@@ -64,7 +60,6 @@ const searchResults = document.getElementById("searchResults");
 // ======================================================================
 const API_ANALYZE = "/api/analyze/";
 const API_REPORT = "/api/report/";
-const API_SEARCH = "/api/search/";
 
 let PIPELINE_DATA = null;
 
@@ -103,7 +98,6 @@ function clearUI() {
 
     datasetSummary.innerHTML = "";
     sentimentSummary.innerHTML = "";
-    entitySummary.innerHTML = "";
     topicCardsContainer.innerHTML = "";
 
     setProgress(5, "Starting…");
@@ -213,10 +207,6 @@ function renderResultsFromJson(data) {
     sentimentSummary.innerHTML =
         `<pre>${JSON.stringify(data.summary.sentiment_overall, null, 2)}</pre>`;
 
-    // Entities
-    entitySummary.innerHTML =
-        `<pre>${JSON.stringify(data.summary.entity_overall, null, 2)}</pre>`;
-
     // Topic cards
     topicCardsContainer.innerHTML = "";
     for (const [topicName, info] of Object.entries(data.topic_cards)) {
@@ -234,25 +224,3 @@ function renderResultsFromJson(data) {
 }
 
 
-
-// ======================================================================
-// SEMANTIC SEARCH
-// ======================================================================
-searchBtn.addEventListener("click", async () => {
-    const query = searchInput.value.trim();
-    if (!query) return;
-
-    searchResults.innerHTML = "Searching…";
-
-    const response = await fetch(API_SEARCH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, top_k: 5 }),
-    });
-
-    const data = await response.json();
-
-    searchResults.innerHTML = data.results
-        .map((r) => `<div class="p-2 bg-slate-800/60 rounded">${r.text}</div>`)
-        .join("");
-});

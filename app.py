@@ -15,7 +15,6 @@ import seaborn as sns
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from umap import UMAP
-import spacy
 from textblob import TextBlob
 from collections import Counter
 
@@ -42,13 +41,6 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 PIPELINE_CACHE = {}
 EMBEDDING_MODEL = None
 EMBEDDINGS_CACHE = {}
-
-# Initialize NLP models
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    print("Warning: spaCy model 'en_core_web_sm' not found. NER will be limited.")
-    nlp = None
 
 
 def get_embedding_model():
@@ -283,31 +275,12 @@ def analyze_sentiment(df, column_name='content_text'):
 
 
 def analyze_entities(df, column_name='content_text'):
-    """Extract named entities from documents"""
-    if nlp is None:
-        return {
-            'total_entities': 0,
-            'entity_types': {},
-            'top_entities': []
-        }
-    
-    texts = df[column_name].astype(str).tolist()[:500]  # Limit for performance
-    
-    all_entities = []
-    entity_types = Counter()
-    
-    for text in texts:
-        doc = nlp(text)
-        for ent in doc.ents:
-            all_entities.append(ent.text)
-            entity_types[ent.label_] += 1
-    
-    top_entities = Counter(all_entities).most_common(20)
-    
+    """Extract named entities from documents - DISABLED"""
+    # NER functionality disabled - returns empty results
     return {
-        'total_entities': len(all_entities),
-        'entity_types': dict(entity_types),
-        'top_entities': [{'text': ent, 'count': count} for ent, count in top_entities]
+        'total_entities': 0,
+        'entity_types': {},
+        'top_entities': []
     }
 
 
@@ -490,9 +463,6 @@ def analyze():
         # Sentiment analysis (using combined data)
         sentiment_overall = analyze_sentiment(combined_df, column_name)
         
-        # Entity analysis
-        entity_overall = analyze_entities(combined_df, column_name)
-        
         # Topic cards (from strict mode as it's more refined, fallback to loose)
         topic_cards = {}
         for data in [strict_data, loose_data]:
@@ -534,8 +504,7 @@ def analyze():
             'charts': charts,
             'dataset_insights': dataset_insights,
             'summary': {
-                'sentiment_overall': sentiment_overall,
-                'entity_overall': entity_overall
+                'sentiment_overall': sentiment_overall
             },
             'topic_cards': topic_cards
         }

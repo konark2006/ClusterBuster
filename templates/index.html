@@ -56,8 +56,8 @@
                 </h1>
 
                 <p class="text-sm text-slate-700 dark:text-slate-400 max-w-2xl mt-1">
-                    Automatic clustering, summaries, UMAP, sentiment, NER extraction,
-                    word clouds, semantic search & PDF reporting.
+                    Automatic clustering, summaries, UMAP, sentiment analysis,
+                    word clouds & PDF reporting.
                 </p>
             </div>
 
@@ -188,38 +188,8 @@
                 <div id="sentimentSummary" class="hidden mt-3 text-sm space-y-2"></div>
             </div>
 
-            <!-- ENTITY SUMMARY -->
-            <div class="rounded-2xl border border-slate-300 dark:border-slate-800 
-                        bg-white dark:bg-slate-900/70 p-5 shadow-xl">
-                        <button class="flex justify-between w-full summary-toggle" data-target="entitySummary">
-                    <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-300">Named Entities</span>
-                    <span class="text-xs text-slate-600 dark:text-slate-400">▼</span>
-                </button>
-                <div id="entitySummary" class="hidden mt-3 text-sm space-y-2"></div>
-            </div>
-
             <!-- TOPIC CARDS -->
             <div id="topicCardsContainer" class="space-y-6"></div>
-        </section>
-
-        <!-- SEMANTIC SEARCH -->
-        <section class="mt-12 rounded-2xl border border-slate-300 dark:border-slate-800 
-                        bg-white dark:bg-slate-900/70 p-6 shadow-xl">
-            <h2 class="text-sm font-semibold mb-3 text-emerald-600 dark:text-emerald-300">
-                Semantic Search
-            </h2>
-
-            <div class="flex gap-2 mb-4">
-                <input id="searchInput" type="text"
-                    class="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 
-                            px-3 py-2 rounded text-sm" placeholder="Search documents…" />
-                <button id="searchBtn"
-                    class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500">
-                    Search
-                </button>
-            </div>
-
-            <div id="searchResults" class="space-y-2 text-sm"></div>
         </section>
 
     </div>
