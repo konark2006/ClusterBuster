@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import re
 from remove_boilerplates import remove_html_tags, remove_boilerplate_patterns
 from lexical_quality_check import filter_by_ttr, filter_by_entropy, filter_by_mtld, filter_by_hapax_ratio, filter_by_repetition_ratio, filter_by_stopword_ratio
 
@@ -22,6 +23,115 @@ STRICT_THRESHOLDS = {
     "repetition_ratio": 0.15,
     "stopword_ratio": 0.65,
 }
+
+
+def filter_by_label_and_country(df, label_column='Label', country_column='Country'):
+    """
+    Filter DataFrame by Label and Country criteria.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame to filter
+    label_column : str, default='Label'
+        The name of the column containing labels
+    country_column : str, default='Country'
+        The name of the column containing country information
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        Filtered DataFrame with only rows matching the criteria
+    """
+    df_filtered = df.copy()
+    initial_count = len(df_filtered)
+    
+    print("\n" + "="*60)
+    print("Filtering by Label and Country...")
+    print("="*60)
+    
+    label_col = None
+    country_col = None
+    
+    for col in df_filtered.columns:
+        if col.lower() == label_column.lower():
+            label_col = col
+        if col.lower() == country_column.lower():
+            country_col = col
+    
+    if label_col is None:
+        print(f"[WARNING] Label column '{label_column}' not found. Available columns: {df_filtered.columns.tolist()}")
+        print("[INFO] Attempting to find label column...")
+
+        for col in df_filtered.columns:
+            if 'label' in col.lower():
+                label_col = col
+                print(f"[INFO] Using column '{col}' as label column")
+                break
+    
+    if country_col is None:
+        print(f"[WARNING] Country column '{country_column}' not found. Available columns: {df_filtered.columns.tolist()}")
+        print("[INFO] Attempting to find country column...")
+
+        for col in df_filtered.columns:
+            if 'country' in col.lower():
+                country_col = col
+                print(f"[INFO] Using column '{col}' as country column")
+                break
+    
+    if label_col is None or country_col is None:
+        raise ValueError(f"Required columns not found. Label: {label_col}, Country: {country_col}")
+    
+    print(f"\nUsing columns: Label='{label_col}', Country='{country_col}'")
+    
+    print(f"\n[Filter 1/2] Filtering by Country (United States only)...")
+    before_country = len(df_filtered)
+    df_filtered = df_filtered[df_filtered[country_col].astype(str).str.lower().str.strip() == 'united states']
+    after_country = len(df_filtered)
+    print(f"  Rows before country filter: {before_country}")
+    print(f"  Rows after country filter: {after_country}")
+    print(f"  Removed: {before_country - after_country} rows")
+    
+    print(f"\n[Filter 2/2] Filtering by Label (research materials and/or technical documentation only)...")
+    before_label = len(df_filtered)
+    
+    def is_valid_label(label_value):
+        """
+        Check if label contains only 'research materials' and/or 'technical documentation'.
+        Returns True if the label contains one or both of these and no other labels.
+        """
+        if pd.isna(label_value):
+            return False
+        
+        label_str = str(label_value).lower().strip()
+        
+        labels = re.split(r'[,;|\n\r]+', label_str)
+        labels = [l.strip() for l in labels if l.strip()]
+        
+        valid_labels = {'research materials', 'technical documentation'}
+        
+        for label in labels:
+            if label not in valid_labels:
+                return False
+        
+        return len(labels) > 0
+    
+    df_filtered = df_filtered[df_filtered[label_col].apply(is_valid_label)]
+    after_label = len(df_filtered)
+    
+    print(f"  Rows before label filter: {before_label}")
+    print(f"  Rows after label filter: {after_label}")
+    print(f"  Removed: {before_label - after_label} rows")
+    
+    final_count = len(df_filtered)
+    print("\n" + "="*60)
+    print(f"Label and Country filtering complete!")
+    print(f"Initial rows: {initial_count}")
+    print(f"Final rows: {final_count}")
+    print(f"Rows removed: {initial_count - final_count} ({(initial_count - final_count)/initial_count*100:.2f}%)")
+    print("="*60)
+    
+    return df_filtered
 
 
 def apply_strict_filtering(df, column_name='content_text', thresholds=None):
@@ -184,15 +294,16 @@ if __name__ == '__main__':
     
     print(f"Total rows in dataset: {len(df_full)}")
     
-    df_sample = df_full.sample(n=4000, random_state=10)
+    # Filter by Label and Country instead of random sampling
+    df_filtered = filter_by_label_and_country(df_full, label_column='Label', country_column='Country')
     
-    print(f"Sampled {len(df_sample)} rows")
+    print(f"\nFiltered dataset: {len(df_filtered)} rows")
     
     # Apply strict filtering (uses STRICT_THRESHOLDS by default)
-    # df_cleaned = apply_strict_filtering(df_sample, column_name='content_text')
+    # df_cleaned = apply_strict_filtering(df_filtered, column_name='content_text')
     
     # Apply loose filtering (uses LOOSE_THRESHOLDS by default)
-    df_cleaned = apply_loose_filtering(df_sample, column_name='content_text')
+    df_cleaned = apply_loose_filtering(df_filtered, column_name='content_text')
     
     # Or use custom thresholds
     # custom_thresholds = {
