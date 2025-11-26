@@ -42,6 +42,11 @@ def log_repetition_removal(row_num, repetition_ratio, threshold, top_word, text=
     words_preview = f" '{_get_first_two_words(text)}'" if text else ""
     print(f"[REPETITION] Row {row_num}{words_preview}: Dropped (Repetition Ratio: {repetition_ratio:.4f} > {threshold}, top word: '{top_word}')")  # Comment this line to disable repetition logging
 
+def log_stopword_removal(row_num, stopword_ratio, threshold, text=None):
+    """Log stopword ratio-based row removal - comment out the print line to disable stopword logs"""
+    words_preview = f" '{_get_first_two_words(text)}'" if text else ""
+    print(f"[STOPWORD] Row {row_num}{words_preview}: Dropped (Stopword Ratio: {stopword_ratio:.4f} > {threshold})")  # Comment this line to disable stopword logging
+
 
 ### TTR Check Functions ###
 def calculate_ttr(text):
@@ -67,7 +72,7 @@ def calculate_ttr(text):
     if not text:
         return None
     
-    tokens = [word.lower() for word in text.split() if word.strip()]
+    tokens = [word.lower().strip() for word in text.split() if word.strip()]
     
     if len(tokens) == 0:
         return None
@@ -281,7 +286,7 @@ def calculate_mtld(text, ttr_threshold=0.72, min_words=10):
     if not text:
         return None
     
-    tokens = [word.lower() for word in text.split() if word.strip()]
+    tokens = [word.lower().strip() for word in text.split() if word.strip()]
     
     if len(tokens) < min_words:
         return None
@@ -431,7 +436,7 @@ def calculate_hapax_ratio(text):
     if not text:
         return None
     
-    tokens = [word.lower() for word in text.split() if word.strip()]
+    tokens = [word.lower().strip() for word in text.split() if word.strip()]
     
     if len(tokens) == 0:
         return None
@@ -537,7 +542,7 @@ def calculate_repetition_ratio(text):
     if not text:
         return None, None
     
-    tokens = [word.lower() for word in text.split() if word.strip()]
+    tokens = [word.lower().strip() for word in text.split() if word.strip()]
     
     if len(tokens) == 0:
         return None, None
@@ -619,6 +624,154 @@ def filter_by_repetition_ratio(df, column_name='content_text', repetition_thresh
     df_filtered = df_filtered[mask].copy()
     
     log_info(f"[INFO] Remaining rows after Repetition Ratio filtering: {len(df_filtered)}")
+    
+    return df_filtered
+
+
+### Stopword Filter Functions ###
+_STOPWORDS = {
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+    'to', 'was', 'were', 'will', 'with', 'the', 'this', 'but', 'they',
+    'have', 'had', 'what', 'said', 'each', 'which', 'their', 'time',
+    'if', 'up', 'out', 'many', 'then', 'them', 'these', 'so', 'some',
+    'her', 'would', 'make', 'like', 'into', 'him', 'has', 'two',
+    'more', 'very', 'after', 'words', 'long', 'than', 'first', 'been',
+    'call', 'who', 'oil', 'its', 'now', 'find', 'down', 'day', 'did',
+    'get', 'come', 'made', 'may', 'part', 'over', 'new', 'sound',
+    'take', 'only', 'little', 'work', 'know', 'place', 'year', 'live',
+    'me', 'back', 'give', 'most', 'very', 'after', 'thing', 'our',
+    'just', 'name', 'good', 'sentence', 'man', 'think', 'say', 'great',
+    'where', 'help', 'through', 'much', 'before', 'line', 'right', 'too',
+    'mean', 'old', 'any', 'same', 'tell', 'boy', 'follow', 'came',
+    'want', 'show', 'also', 'around', 'form', 'three', 'small', 'set',
+    'put', 'end', 'does', 'another', 'well', 'large', 'must', 'big',
+    'even', 'such', 'because', 'turn', 'here', 'why', 'ask', 'went',
+    'men', 'read', 'need', 'land', 'different', 'home', 'us', 'move',
+    'try', 'kind', 'hand', 'picture', 'again', 'change', 'off', 'play',
+    'spell', 'air', 'away', 'animal', 'house', 'point', 'page', 'letter',
+    'mother', 'answer', 'found', 'study', 'still', 'learn', 'should',
+    'america', 'world', 'high', 'every', 'near', 'add', 'food', 'between',
+    'own', 'below', 'country', 'plant', 'last', 'school', 'father', 'keep',
+    'tree', 'never', 'start', 'city', 'earth', 'eye', 'light', 'thought',
+    'head', 'under', 'story', 'saw', 'left', 'don\'t', 'few', 'while',
+    'along', 'might', 'close', 'something', 'seem', 'next', 'hard', 'open',
+    'example', 'begin', 'life', 'always', 'those', 'both', 'paper', 'together',
+    'got', 'group', 'often', 'run', 'important', 'until', 'children', 'side',
+    'feet', 'car', 'mile', 'night', 'walk', 'white', 'sea', 'began', 'grow',
+    'took', 'river', 'four', 'carry', 'state', 'once', 'book', 'hear',
+    'stop', 'without', 'second', 'later', 'miss', 'idea', 'enough', 'eat',
+    'face', 'watch', 'far', 'indian', 'really', 'almost', 'let', 'above',
+    'girl', 'sometimes', 'mountain', 'cut', 'young', 'talk', 'soon', 'list',
+    'song', 'leave', 'family', 'it\'s'
+}
+
+def calculate_stopword_ratio(text, stopwords=None):
+    """
+    Calculate Stopword Ratio for a given text.
+    
+    Stopword Ratio = number of stopwords / total number of words
+    
+    Higher stopword ratio indicates text with many common/function words (may be low quality).
+    Lower stopword ratio indicates more substantive content words.
+    
+    Parameters:
+    -----------
+    text : str
+        Text string to calculate stopword ratio for
+    stopwords : set, optional
+        Set of stopwords to use. If None, uses default English stopwords.
+        
+    Returns:
+    --------
+    float
+        Stopword ratio value between 0 and 1, or None if text is empty/invalid
+    """
+    if pd.isna(text) or text is None:
+        return None
+    
+    text = str(text).strip()
+    if not text:
+        return None
+    
+    tokens = [word.lower().strip() for word in text.split() if word.strip()]
+    
+    if len(tokens) == 0:
+        return None
+    
+    if stopwords is None:
+        stopwords = _STOPWORDS
+    
+    stopword_count = sum(1 for token in tokens if token in stopwords)
+    
+    stopword_ratio = stopword_count / len(tokens)
+    
+    return stopword_ratio
+
+
+def filter_by_stopword_ratio(df, column_name='content_text', stopword_threshold=0.5, 
+                              stopwords=None, drop_above=True):
+    """
+    Filter DataFrame rows based on Stopword Ratio threshold.
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        The DataFrame containing the data
+    column_name : str, default='content_text'
+        The name of the column containing text content
+    stopword_threshold : float, default=0.5
+        Stopword ratio threshold value (between 0 and 1)
+        If drop_above=True, rows with ratio > threshold are dropped
+    stopwords : set, optional
+        Set of stopwords to use. If None, uses default English stopwords.
+    drop_above : bool, default=True
+        If True, drop rows with stopword ratio above threshold (high stopword content).
+        If False, drop rows with stopword ratio below threshold (low stopword content).
+        
+    Returns:
+    --------
+    pandas.DataFrame
+        DataFrame with rows filtered based on stopword ratio threshold
+    """
+    df_filtered = df.copy()
+    
+    if column_name not in df_filtered.columns:
+        log_info(f"[Warning] Column '{column_name}' not found in DataFrame")
+        log_info(f"[INFO] Available columns: {df_filtered.columns.tolist()}")
+        return df_filtered
+    
+    log_info(f"\n[INFO] Filtering rows based on Stopword Ratio threshold ({stopword_threshold})...")
+    log_info(f"[INFO] Initial row count: {len(df_filtered)}")
+    
+    stopword_values = df_filtered[column_name].apply(
+        lambda x: calculate_stopword_ratio(x, stopwords=stopwords)
+    )
+    
+    if drop_above:
+        dropped_rows = df_filtered[stopword_values > stopword_threshold].index
+        for row_idx in dropped_rows:
+            stopword_val = stopword_values.loc[row_idx]
+            if pd.notna(stopword_val):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_stopword_removal(row_idx, stopword_val, stopword_threshold, text_content)
+        mask = (stopword_values <= stopword_threshold) | (stopword_values.isna())
+        dropped_count = (stopword_values > stopword_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Stopword Ratio > {stopword_threshold}")
+    else:
+        dropped_rows = df_filtered[stopword_values < stopword_threshold].index
+        for row_idx in dropped_rows:
+            stopword_val = stopword_values.loc[row_idx]
+            if pd.notna(stopword_val):
+                text_content = df_filtered.loc[row_idx, column_name]
+                log_stopword_removal(row_idx, stopword_val, stopword_threshold, text_content)
+        mask = (stopword_values >= stopword_threshold) | (stopword_values.isna())
+        dropped_count = (stopword_values < stopword_threshold).sum()
+        log_info(f"[INFO] Dropping {dropped_count} rows with Stopword Ratio < {stopword_threshold}")
+    
+    df_filtered = df_filtered[mask].copy()
+    
+    log_info(f"[INFO] Remaining rows after Stopword Ratio filtering: {len(df_filtered)}")
     
     return df_filtered
 
