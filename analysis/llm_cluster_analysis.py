@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import sys
 from collections import Counter
 import re
 from openai import OpenAI
@@ -63,7 +64,7 @@ def analyze_cluster_with_llm(representative_texts, unigrams, bigrams, metadata_i
     Returns:
     --------
     dict
-        Dictionary with topic_label, summary, coherence, and merge_suggestions
+        Dictionary with topic_label, summary, and coherence
     """
     
     unigrams_str = ', '.join([f"{word} ({count})" for word, count in unigrams[:10]])
@@ -139,7 +140,7 @@ def analyze_clusters(data_path='data/bertopic_clustered_data.xlsx',
                     api_key=None,
                     model="gpt-4o-mini"):
     """
-    Analyze clusters using LLM to get topic labels, summaries, and merge suggestions.
+    Analyze clusters using LLM to get topic labels, summaries, and coherence assessments.
     
     Parameters:
     -----------
